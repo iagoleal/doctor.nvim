@@ -2,6 +2,11 @@
 
 (local gmatch string.gmatch)
 
+(macro with-default [value default]
+  "Return a computation or a default in case of nil."
+  `(let [it# ,value]
+     (if (~= it# nil) it# ,default)))
+
 (fn unwords [words]
   "Join a string with spaces."
   (table.concat words " "))
@@ -13,10 +18,18 @@
       (lua "return true")))
   false)
 
+(fn nonempty? [t]
+  (> (length t) 0))
+
 (fn random-element [t]
   "Pick a random element from a sequence."
   (let [index (math.random 1 (length t))]
     (. t index)))
+
+(fn random-remove! [t]
+  "Pick and remove a random element from a sequence."
+  (let [index (math.random 1 (length t))]
+    (table.remove t index)))
 
 (fn lookup-keyword [script kw]
   "Look into a script for a keyword object."
@@ -34,6 +47,10 @@
   "Look into a script for a keyword's reflection string."
   (let [key (string.lower keyword)]
     (. script :reflections key)))
+
+(fn keyword-memory [keyword]
+  "Look into a keyword for its memorization rules."
+  (. keyword :memory))
 
 (fn pick-default-say [script]
   "Pick a random say from the script.
@@ -88,20 +105,39 @@
 
 ;;;; Matching keywords
 
+;; TODO:
+(fn try-decomposition-rules [script rules phrase])
+
+;; TODO:
 (fn keywords-matcher [script keywords phrase])
+
+
 ;;;; Constructor
 
 ; Create a new bot from a script
 (fn make-bot [script]
   "Turn a script into an answering function."
-  (local memory {}) ; The bot's memory
+  (local memory {})                   ; The bot's memory
+  (local remembering-probability 0.4) ; The probability that a Bot will answer from memory
   ;; Create methods local to the bot
+  (fn maybe-remember! []
+    (let [p (math.random)]
+      (if (and (> p remembering-probability)
+               (nonempty? memory))
+          (random-remove! memory)
+          nil)))
+
   (fn memorize! [phrase]
     "Insert a phrase inputed by the user into the Bot's memory.
      Adds extra wow factor."
     (table.insert memory phrase))
 
-  (fn commit-to-memory [])
+  (fn commit-to-memory [keyword phrase]
+    (let [rules  (keyword-memory keyword)
+          output (try-decomposition-rules script memo phrase)]
+      (when (~= output nil)
+        (memorize! output))))
+
   (fn answer [input]
     "The answering function is a script-aware closure.
      Receive some input and answer accordingly to the state of the bot.
@@ -115,11 +151,12 @@
        - Answer accordingly or with a default answer."
     (let [(keywords kw-stack) (scan-keywords script input)
           phrase              (unwords (reflect script keywords))]
-      (match kw-stack
-        []       (pick-default-say script)
-        [x & _]  (do
-                   ; (commit-to-memory x phrase)
-                   (keywords-matcher script kw-stack phrase)))))
+      (print "PHRASE" (length kw-stack) phrase)
+      (match (length kw-stack)
+        0  (with-default (maybe-remember!)
+                         (pick-default-say script))
+        _  (do (commit-to-memory (. kw-stack 1) phrase)
+               (keywords-matcher script kw-stack phrase)))))
   ;; Return the answering function
   answer)
 
