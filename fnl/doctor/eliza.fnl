@@ -1,11 +1,11 @@
 ;;;; Here lives all the parsing.
 
-(local gmatch string.gmatch)
-
 (macro with-default [value default]
   "Return a computation or a default in case of nil."
   `(let [it# ,value]
      (if (~= it# nil) it# ,default)))
+
+;;;; General utility functions
 
 (fn unwords [words]
   "Join a string with spaces."
@@ -31,6 +31,9 @@
   (let [index (math.random 1 (length t))]
     (table.remove t index)))
 
+
+;;;; Script accessors
+
 (fn lookup-keyword [script kw]
   "Look into a script for a keyword object."
   (let [key (string.lower kw)
@@ -42,6 +45,10 @@
 (fn keyword-precedence [kw]
   "Look into a keyword and return its precedence."
   (. kw :precedence))
+
+(fn keyword-rules [kw]
+  "Look into a keyword and return its decomposition/reassembly rules."
+  (. kw :rules))
 
 (fn lookup-reflection [script keyword]
   "Look into a script for a keyword's reflection string."
@@ -58,13 +65,18 @@
   (let [default-says (. script :default)]
     (random-element default-says)))
 
+(fn pick-greeting [script]
+  "Pick a random greeting from the script."
+  (let [greetings (. script :greetings)]
+    (random-element greetings)))
+
 ;;;; Scan for keywords
 
 (fn split-into-words [text]  ; String -> List (List String)
   "Break a string into phrases by matching common punctuation marks.
    Then break each phrase into words."
-  (icollect [phrase (gmatch text "[^.,!?;:]+")]
-    (icollect [word (gmatch phrase "%S+")]
+  (icollect [phrase (string.gmatch text "[^.,!?;:]+")]
+    (icollect [word (string.gmatch phrase "%S+")]
       word)))
 
 ;; This is the main loop for `scan-keywords`.
@@ -89,7 +101,7 @@
     (for [i (length slices) 1 -1]
       (let [chunked-text (. slices i)
             keywords (scan-keywords-chunk script chunked-text)]
-        (when (> (length keywords) 0)
+        (when (nonempty? keywords)
           (set chunked-text* chunked-text)
           (set keywords* keywords))))
     (values chunked-text* keywords*)))
@@ -106,10 +118,30 @@
 ;;;; Matching keywords
 
 ;; TODO:
-(fn try-decomposition-rules [script rules phrase])
+(fn try-decomposition-rule [script rule phrase])
 
 ;; TODO:
-(fn keywords-matcher [script keywords phrase])
+(fn try-decomposition-rules [script rules phrase]
+  "Try to apply a series of decomposition rules to a string."
+  (var result nil)
+  (each [i rule (ipairs rules) :until result]
+    (let [response (try-decomposition-rule script rule phrase)]
+      (when response
+        (set result response))))
+  result)
+
+(fn keywords-matcher [script keywords phrase]
+  "Apply a sequence of keywords to an input string until a match is found."
+  (var result nil)
+  (each [i keyword (ipairs keywords) :until result]
+    (let [rules    (keyword-rules keyword)
+          response (try-decomposition-rules rules phrase)]
+      (when response
+        (set result response))))
+  ;; Returned the result of applying the highest matching keyword
+  ;; or, in case nothing matches, return a default response.
+  (with-default result
+                (pick-default-say script)))
 
 
 ;;;; Constructor
@@ -138,6 +170,10 @@
       (when (~= output nil)
         (memorize! output))))
 
+  (fn greet []
+    "Say a random hello phrase."
+    (pick-greeting script))
+
   (fn answer [input]
     "The answering function is a script-aware closure.
      Receive some input and answer accordingly to the state of the bot.
@@ -151,14 +187,16 @@
        - Answer accordingly or with a default answer."
     (let [(keywords kw-stack) (scan-keywords script input)
           phrase              (unwords (reflect script keywords))]
-      (print "PHRASE" (length kw-stack) phrase)
       (match (length kw-stack)
         0  (with-default (maybe-remember!)
                          (pick-default-say script))
         _  (do (commit-to-memory (. kw-stack 1) phrase)
                (keywords-matcher script kw-stack phrase)))))
-  ;; Return the answering function
-  answer)
+  ;; Make the bot itself
+  (setmetatable {: greet : answer}
+                {:__call #(answer $2)}))
+
+
 
 ;; export
 {: make-bot}
