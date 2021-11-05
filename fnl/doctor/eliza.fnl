@@ -5,6 +5,18 @@
   `(let [it# ,value]
      (if (~= it# nil) it# ,default)))
 
+(macro loop-until [loop-args body]
+  (local result# (gensym))
+  (table.insert loop-args :until)
+  (table.insert loop-args `(~= ,result# nil))
+  `(do
+     (var ,result# nil)
+     (each ,loop-args
+       (let [this-stage# (do ,body)]
+         (when (~= this-stage# nil)
+           (set ,result# this-stage#))))
+     ,result#))
+
 ;;;; General utility functions
 
 (fn unwords [words]
@@ -117,30 +129,33 @@
 
 ;;;; Matching keywords
 
+(var match-keyword nil)
+
 ;; TODO:
-(fn try-decomposition-rule [script rule phrase])
+(fn try-decomposition-rule [script rule phrase]
+  (let [pieces (disassemble script rule phrase)]
+    (match (try-random-reassemble rule phrase)
+      (:done response) response
+      (:try-keyword t) (let [kw (lookup-keyword script t)]
+                         (match-keyword script kw phrase))
+      :newkey          nil)))
 
 ;; TODO:
 (fn try-decomposition-rules [script rules phrase]
   "Try to apply a series of decomposition rules to a string."
-  (var result nil)
-  (each [i rule (ipairs rules) :until result]
-    (let [response (try-decomposition-rule script rule phrase)]
-      (when response
-        (set result response))))
-  result)
+  (loop-until [_ rule (ipairs rules)]
+    (try-decomposition-rule script rule phrase)))
+
+(set match-keyword (fn [keyword phrase]
+                    (let [rules (keyword-rules keyword)]
+                      (try-decomposition-rules rules phrase))))
 
 (fn keywords-matcher [script keywords phrase]
   "Apply a sequence of keywords to an input string until a match is found."
-  (var result nil)
-  (each [i keyword (ipairs keywords) :until result]
-    (let [rules    (keyword-rules keyword)
-          response (try-decomposition-rules rules phrase)]
-      (when response
-        (set result response))))
-  ;; Returned the result of applying the highest matching keyword
+  ;; Return the result of applying the highest matching keyword
   ;; or, in case nothing matches, return a default response.
-  (with-default result
+  (with-default (loop-until [_ keyword (ipairs keywords)]
+                  (match-keyword keyword phrase))
                 (pick-default-say script)))
 
 
