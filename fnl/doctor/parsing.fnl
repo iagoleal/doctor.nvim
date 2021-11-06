@@ -1,3 +1,4 @@
+;;;; Here lives all the parsing.
 ;;;; Parse user input
 
 (local smatch string.match)
@@ -8,6 +9,13 @@
 (fn words [str]
   "Iterator over the space-separated words of a string."
   (string.gmatch str "%S+"))
+
+(fn has-elem? [t x]
+  "Check whether a table contains a certain element."
+  (each [_ v (pairs t)]
+    (when (= x v)
+      (lua "return true")))
+  false)
 
 ;;;; Convert Text to Rules
 
@@ -45,7 +53,6 @@
                          (set index (length rule)))))
                  out)})
 
-
 (fn parse-matching-rule [token]
   (var result nil)
   (var chosen-parser nil)
@@ -58,8 +65,8 @@
         (set result content))))
   (values chosen-parser result))
 
-(fn make-matching-rules [str]
-  (icollect [token (words str)]
+(fn make-matching-rules [recipe]
+  (icollect [token (words recipe)]
     (let [(type content) (parse-matching-rule token)]
       {: type : content})))
 
@@ -75,16 +82,54 @@
         (set result content))))
   (values chosen-parser result))
 
-(fn make-reassembly-rule [recipe]
-  (let [(type content) (parse-reassembly-rule recipe)]
-    {: type : content}))
+
+(fn pop-rule [rule]
+  (values rule.type rule.content))
+
+(fn compare-words [a b]
+  (= (a:lower) (b:lower)))
 
 ;; TODO:
-(fn disassemble [script rule phrase]
-  (let [mrules (make-matching-rules (. rule :decomposition))]
-    nil))
+(fn disassemble [script bot-rule tokens]
+  (var fail false) ; The parsing failed
+  (var token-index 1)
+  (let [matching-rules (make-matching-rules (. bot-rule :decomposition))
+        pieces {}]
+    (each [i mrule (ipairs matching-rules) :until (or fail
+                                                      (> token-index (length tokens)))]
+      (local token (. tokens token-index))
+      (match (pop-rule mrule)
+        (:match-word   word) (if (compare-words word token)
+                                 (do
+                                   (table.insert pieces token)
+                                   (set token-index (+ token-index 1)))
+                                 (set fail true))
+        (:match-n      n)    (if (>= (- (length tokens) token-index) n)
+                                 (for [_ 1 n]
+                                   (table.insert pieces (. tokens token-index))
+                                   (set token-index (+ token-index 1)))
+                                 (set fail true))
+
+        (:match-choice options) (if (has-elem? options token)
+                                    (do
+                                      (table.insert pieces token)
+                                      (set token-index (+ token-index 1)))
+                                    (set fail true))
+        (:match-group  group) (let [keywords (. script :groups group)]
+                                (if (has-elem? keywords token)
+                                    (do
+                                      (table.insert pieces token)
+                                      (set token-index (+ token-index 1)))
+                                    (set fail true)))
+        :match-many (if (= i (length matching-rules))
+                        (for [_ token-index (length tokens)]
+                          (table.insert pieces (. tokens token-index))
+                          (set token-index (+ token-index 1))))))
+    (if fail nil pieces)))
+
 
 (fn reassemble [rrules pieces]
+  "Reassemble the answer following a set of rules."
   (table.concat (icollect [_ rule (ipairs rrules)]
                   (match rule
                     {:type :verbatim
@@ -92,14 +137,20 @@
                     {:type :lookup
                      :content n}    (. pieces n)))))
 
+(fn random-element [t]
+  "Pick a random element from a sequence."
+  (let [index (math.random 1 (length t))]
+    (. t index)))
+
 (fn random-reassembly-rule [rule]
+  "Pick a reassembly recipe at random and return its rule."
   (let [recipe (random-element (. rule :reassembly))]
     (parse-reassembly-rule recipe)))
 
-(fn try-random-reassemble [rule phrase]
+(fn try-random-reassemble [rule pieces]
   (match (random-reassembly-rule rule)
     (:reassemble rrules) (values :done (reassemble rrules pieces))
-    (rtype content)      (values rtype rcontent)))
+    (rtype rcontent)     (values rtype rcontent)))
 
 ;; Export
 {: disassemble

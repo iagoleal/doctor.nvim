@@ -1,4 +1,8 @@
-;;;; Here lives all the parsing.
+;;;; The Bot itself
+
+(local {: disassemble
+        : try-random-reassemble}
+       (require :doctor.parsing))
 
 (macro with-default [value default]
   "Return a computation or a default in case of nil."
@@ -131,16 +135,15 @@
 
 (var match-keyword nil)
 
-;; TODO:
 (fn try-decomposition-rule [script rule phrase]
-  (let [pieces (disassemble script rule phrase)]
-    (match (try-random-reassemble rule phrase)
-      (:done response) response
-      (:try-keyword t) (let [kw (lookup-keyword script t)]
-                         (match-keyword script kw phrase))
-      :newkey          nil)))
+  (let [pieces (disassemble script rule phrase)] ; Disassemble may fail
+    (when pieces
+      (match (try-random-reassemble rule pieces)
+        (:done response) response
+        (:try-keyword t) (let [kw (lookup-keyword script t)]
+                           (match-keyword script kw phrase))
+        :newkey          nil))))
 
-;; TODO:
 (fn try-decomposition-rules [script rules phrase]
   "Try to apply a series of decomposition rules to a string."
   (loop-until [_ rule (ipairs rules)]
@@ -148,7 +151,7 @@
 
 (set match-keyword (fn [keyword phrase]
                     (let [rules (keyword-rules keyword)]
-                      (try-decomposition-rules rules phrase))))
+                      (try-decomposition-rules script rules phrase))))
 
 (fn keywords-matcher [script keywords phrase]
   "Apply a sequence of keywords to an input string until a match is found."
@@ -157,7 +160,6 @@
   (with-default (loop-until [_ keyword (ipairs keywords)]
                   (match-keyword keyword phrase))
                 (pick-default-say script)))
-
 
 ;;;; Constructor
 
@@ -181,7 +183,7 @@
 
   (fn commit-to-memory [keyword phrase]
     (let [rules  (keyword-memory keyword)
-          output (try-decomposition-rules script memo phrase)]
+          output (try-decomposition-rules script rules phrase)]
       (when (~= output nil)
         (memorize! output))))
 
