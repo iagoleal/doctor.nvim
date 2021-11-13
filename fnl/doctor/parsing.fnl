@@ -1,6 +1,12 @@
 ;;;; Here lives all the parsing.
 ;;;; Parse user input
 
+(fn ppf [...]
+  (let [pp (require :fennelview)
+         ss (icollect [k v (pairs [...])] (pp v))]
+     (print "&&&" (unpack ss))))
+
+
 (local smatch string.match)
 
 (fn split [str sep]
@@ -86,8 +92,41 @@
 (fn pop-rule [rule]
   (values rule.type rule.content))
 
-(fn compare-words [a b]
+(fn same-word? [a b]
   (= (a:lower) (b:lower)))
+
+(fn nil? [x] (= x nil))
+
+(fn match-here [script rules tokens rule-index token-index]
+  (local token (. tokens token-index)) ; The current token we're looking at
+  (local rule  (. rules  rule-index))
+  (when (or (<= rule-index  (length rules))
+            (<= token-index (length tokens)))
+    (match (pop-rule rule)
+      (:match-word  word) (do
+                            ; (ppf "WORD_TOKEN" word token)
+                            (if (same-word? word token)
+                                1))
+      (:match-choice options) (if (has-elem? options token)
+                                  1)
+      (:match-group group) (let [keywords (. script :groups group)]
+                             (if (has-elem? keywords token)
+                                 1))
+      (:match-n n) (if (>= (- (length tokens) token-index) n)
+                       n)
+      :match-many (let [next-rule (. rules (+ rule-index 1))
+                        tindex-gap (- (length tokens) token-index)]
+                    ; (ppf "NEXT RULE" (type next-rule) next-rule)
+                    ; (ppf "GAP" tindex-gap)
+                    (if (nil? next-rule)
+                        (+ tindex-gap 1)
+                        (do
+                          (var n 0)
+                          (while (and (nil? (match-here script rules tokens (+ rule-index 1) (+ token-index n)))
+                                      (<= (+ token-index n) (length tokens)))
+                            (set n (+ n 1)))
+                          (if (<= n tindex-gap)
+                              n)))))))
 
 ;; TODO:
 (fn disassemble [script bot-rule tokens]
@@ -95,37 +134,25 @@
   (var token-index 1)
   (let [matching-rules (make-matching-rules (. bot-rule :decomposition))
         pieces {}]
+    ; (ppf :Tokens? tokens)
+    ; (ppf "Rules?" matching-rules)
     (each [i mrule (ipairs matching-rules) :until (or fail
-                                                      (> token-index (length tokens)))]
-      (local token (. tokens token-index))
-      (match (pop-rule mrule)
-        (:match-word   word) (if (compare-words word token)
-                                 (do
-                                   (table.insert pieces token)
-                                   (set token-index (+ token-index 1)))
-                                 (set fail true))
-        (:match-n      n)    (if (>= (- (length tokens) token-index) n)
-                                 (for [_ 1 n]
-                                   (table.insert pieces (. tokens token-index))
-                                   (set token-index (+ token-index 1)))
-                                 (set fail true))
-
-        (:match-choice options) (if (has-elem? options token)
-                                    (do
-                                      (table.insert pieces token)
-                                      (set token-index (+ token-index 1)))
-                                    (set fail true))
-        (:match-group  group) (let [keywords (. script :groups group)]
-                                (if (has-elem? keywords token)
-                                    (do
-                                      (table.insert pieces token)
-                                      (set token-index (+ token-index 1)))
-                                    (set fail true)))
-        :match-many (if (= i (length matching-rules))
-                        (for [_ token-index (length tokens)]
-                          (table.insert pieces (. tokens token-index))
-                          (set token-index (+ token-index 1))))))
-    (if fail nil pieces)))
+                                                      (> token-index
+                                                         (length tokens)))]
+      (let [advance (match-here script matching-rules tokens i token-index)]
+        ; (ppf "ADVANCE" advance)
+        (if advance
+            (let [found {}]
+              (for [i token-index (- (+ token-index advance) 1)]
+                (table.insert found (. tokens i)))
+              (table.insert pieces (table.concat found " "))
+              (set token-index (+ token-index advance)))
+            (set fail true))))
+      ; (ppf "C-RULE" i (.. "#tokens = " (length tokens)) (.. "tidx = " token-index))
+      ; (ppf "PIECES" pieces))
+    (if (or fail (< token-index (length tokens)))
+        nil
+        pieces)))
 
 
 (fn reassemble [rrules pieces]

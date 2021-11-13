@@ -1,4 +1,9 @@
 ;;;; The Bot itself
+(fn ppf [...]
+  (let [pp (require :fennelview)
+         ss (icollect [k v (pairs [...])] (pp v))]
+     (print :>>> (unpack ss))
+     ...))
 
 (local {: disassemble
         : try-random-reassemble}
@@ -10,6 +15,9 @@
      (if (~= it# nil) it# ,default)))
 
 (macro loop-until [loop-args body]
+  (assert-compile (sequence? loop-args)
+                  "loop arguments should be inside square brackets"
+                  loop-args)
   (local result# (gensym))
   (table.insert loop-args :until)
   (table.insert loop-args `(~= ,result# nil))
@@ -47,6 +55,12 @@
   (let [index (math.random 1 (length t))]
     (table.remove t index)))
 
+(fn reverse [t]
+  "Reverse the elements of a sequence."
+  (let [out {}]
+    (for [i (length t) 1 -1]
+      (table.insert out (. t i)))
+    out))
 
 ;;;; Script accessors
 
@@ -110,7 +124,7 @@
   stack)
 
 (fn scan-keywords [script input]
-  "Scan an user input for the keywords defined on a Bot script."
+  "Scan an user input for the keywords defined in a Bot script."
   (var keywords* [])
   (var chunked-text* [])
   (let [slices (split-into-words input)]
@@ -137,6 +151,7 @@
 
 (fn try-decomposition-rule [script rule phrase]
   (let [pieces (disassemble script rule phrase)] ; Disassemble may fail
+    ; (ppf "DISSASEMBLED PIECES" pieces)
     (when pieces
       (match (try-random-reassemble rule pieces)
         (:done response) response
@@ -149,7 +164,7 @@
   (loop-until [_ rule (ipairs rules)]
     (try-decomposition-rule script rule phrase)))
 
-(set match-keyword (fn [keyword phrase]
+(set match-keyword (fn [script keyword phrase]
                     (let [rules (keyword-rules keyword)]
                       (try-decomposition-rules script rules phrase))))
 
@@ -158,7 +173,7 @@
   ;; Return the result of applying the highest matching keyword
   ;; or, in case nothing matches, return a default response.
   (with-default (loop-until [_ keyword (ipairs keywords)]
-                  (match-keyword keyword phrase))
+                  (match-keyword script keyword phrase))
                 (pick-default-say script)))
 
 ;;;; Constructor
@@ -202,18 +217,28 @@
        - Else, try to commit the phrase to memory
          and try to match the keywords to it.
        - Answer accordingly or with a default answer."
-    (let [(keywords kw-stack) (scan-keywords script input)
-          phrase              (unwords (reflect script keywords))]
+    (let [(chunked-text keywords) (scan-keywords script input)
+          phrase                  (reflect script chunked-text)
+          kw-stack                (reverse keywords)]
       (match (length kw-stack)
         0  (with-default (maybe-remember!)
                          (pick-default-say script))
         _  (do (commit-to-memory (. kw-stack 1) phrase)
+               ; (ppf "Keyword" kw-stack phrase)
                (keywords-matcher script kw-stack phrase)))))
   ;; Make the bot itself
   (setmetatable {: greet : answer}
                 {:__call #(answer $2)}))
 
 
+;;; Tests
+;;; TODO: Remove this after it's done
+(local script (require :script))
+; ((. (make-bot script) :greet))
+; (local bot (make-bot script))
+; (bot "I'm sorry")
+; (bot "Hello, my name is Iago. How are you?")
+; (bot "Do you want to be my friend?")
 
 ;; export
-{: make-bot}
+make-bot
