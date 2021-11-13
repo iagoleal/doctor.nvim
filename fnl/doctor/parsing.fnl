@@ -100,8 +100,7 @@
 (fn match-here [script rules tokens rule-index token-index]
   (local token (. tokens token-index)) ; The current token we're looking at
   (local rule  (. rules  rule-index))
-  (when (or (<= rule-index  (length rules))
-            (<= token-index (length tokens)))
+  (when (and token rule)
     (match (pop-rule rule)
       (:match-word  word) (do
                             ; (ppf "WORD_TOKEN" word token)

@@ -72,6 +72,12 @@
       (when (has-elem? (. obj :keyword) kw)
         (lua "return obj")))))
 
+(fn lookup-reflection [script keyword]
+  "Look into a script for a keyword's reflection string."
+  (let [key (string.lower keyword)]
+    (. script :reflections key)))
+
+
 (fn keyword-precedence [kw]
   "Look into a keyword and return its precedence."
   (. kw :precedence))
@@ -79,11 +85,6 @@
 (fn keyword-rules [kw]
   "Look into a keyword and return its decomposition/reassembly rules."
   (. kw :rules))
-
-(fn lookup-reflection [script keyword]
-  "Look into a script for a keyword's reflection string."
-  (let [key (string.lower keyword)]
-    (. script :reflections key)))
 
 (fn keyword-memory [keyword]
   "Look into a keyword for its memorization rules."
@@ -115,7 +116,7 @@
   (local stack [])
   (var current-precedence (- math.huge))
   (each [_ word (ipairs words)]
-    (let [kw (lookup-keyword script word)]
+    (let [kw (lookup-keyword script (string.lower word))]
       (when (~= kw nil)
         (if (> (keyword-precedence kw) current-precedence)
             (do (set current-precedence (keyword-precedence kw)) ; update precedence
@@ -238,8 +239,9 @@
 ; (local script (require :doctor.script))
 ; ((. (make-bot script) :greet))
 ; (local script ((loadfile "../lua/doctor/script.lua")))
-(local bot (make-bot script))
-(bot "I'm sorry")
+; (local bot (make-bot script))
+; (bot "I'm sorry")
+; (bot.answer "Are you happy?")
 ; (bot "Hello, my name is Iago. How are you?")
 ; (bot "Do you want to be my friend?")
 
