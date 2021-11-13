@@ -197,10 +197,11 @@
     (table.insert memory phrase))
 
   (fn commit-to-memory [keyword phrase]
-    (let [rules  (keyword-memory keyword)
-          output (try-decomposition-rules script rules phrase)]
-      (when (~= output nil)
-        (memorize! output))))
+    (let [rules (keyword-memory keyword)]
+      (when rules
+        (let [output (try-decomposition-rules script rules phrase)]
+          (when (~= output nil)
+            (memorize! output))))))
 
   (fn greet []
     "Say a random hello phrase."
@@ -223,9 +224,10 @@
       (match (length kw-stack)
         0  (with-default (maybe-remember!)
                          (pick-default-say script))
-        _  (do (commit-to-memory (. kw-stack 1) phrase)
-               ; (ppf "Keyword" kw-stack phrase)
-               (keywords-matcher script kw-stack phrase)))))
+        _  (do
+              ; (ppf "Keyword" kw-stack phrase)
+              (commit-to-memory (. kw-stack 1) phrase)
+              (keywords-matcher script kw-stack phrase)))))
   ;; Make the bot itself
   (setmetatable {: greet : answer}
                 {:__call #(answer $2)}))
@@ -233,10 +235,11 @@
 
 ;;; Tests
 ;;; TODO: Remove this after it's done
-(local script (require :script))
+; (local script (require :doctor.script))
 ; ((. (make-bot script) :greet))
-; (local bot (make-bot script))
-; (bot "I'm sorry")
+; (local script ((loadfile "../lua/doctor/script.lua")))
+(local bot (make-bot script))
+(bot "I'm sorry")
 ; (bot "Hello, my name is Iago. How are you?")
 ; (bot "Do you want to be my friend?")
 
