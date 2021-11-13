@@ -14,15 +14,15 @@ finely produced by the best of 1966's artificial intelligence!
 
 This is a implementation of Joseph Weizenbaum's [ELIZA chatbot][eliza-wikipedia]
 embedded in a neovim prompt buffer.
-It works just like Emacs `M-x doctor`: you fire up a command
-and a chat buffer opens up.
+It works just like Emacs `M-x doctor`:
+you fire up a command and a chat buffer pops up.
 
 A ELIZA bot uses a script that is separate from the implementation
 to formulate its responses.
 In the case of this plugin, we are using the original script
 found on Weizenbaum's paper from 1966
 that simulates a Rogerian psychotherapist.
-(Pull Requests for new scripts are always welcome by the way!)
+(Pull Requests for new scripts are always welcome, by the way!)
 
 
 ## Installation
