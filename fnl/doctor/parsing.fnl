@@ -6,24 +6,18 @@
          ss (icollect [k v (pairs [...])] (pp v))]
      (print "&&&" (unpack ss))))
 
-
 (local smatch string.match)
 
-(fn split [str sep]
-  (string.gmatch str (.. "([^" sep "]+)")))
+(local {: same-word?
+        : nil?
+        : has-elem?
+        : split
+        : words
+        : slice
+        : random-element}
+       (require :doctor.utils))
 
-(fn words [str]
-  "Iterator over the space-separated words of a string."
-  (string.gmatch str "%S+"))
-
-(fn has-elem? [t x]
-  "Check whether a table contains a certain element."
-  (each [_ v (pairs t)]
-    (when (= x v)
-      (lua "return true")))
-  false)
-
-;;;; Convert Text to Rules
+;;; Convert Text to Rules
 
 (local parsers
   {:match-n      #(tonumber (smatch $1 "^%#(%d+)$"))    ; Match N words;                Pattern: #<number>
@@ -92,20 +86,14 @@
 (fn pop-rule [rule]
   (values rule.type rule.content))
 
-(fn same-word? [a b]
-  (= (a:lower) (b:lower)))
-
-(fn nil? [x] (= x nil))
 
 (fn match-here [script rules tokens rule-index token-index]
   (local token (. tokens token-index)) ; The current token we're looking at
   (local rule  (. rules  rule-index))
   (when (and token rule)
     (match (pop-rule rule)
-      (:match-word  word) (do
-                            ; (ppf "WORD_TOKEN" word token)
-                            (if (same-word? word token)
-                                1))
+      (:match-word  word) (if (same-word? word token)
+                              1)
       (:match-choice options) (if (has-elem? options token)
                                   1)
       (:match-group group) (let [keywords (. script :groups group)]
@@ -127,7 +115,6 @@
                           (if (<= n tindex-gap)
                               n)))))))
 
-;; TODO:
 (fn disassemble [script bot-rule tokens]
   (var fail false) ; The parsing failed
   (var token-index 1)
@@ -141,18 +128,16 @@
       (let [advance (match-here script matching-rules tokens i token-index)]
         ; (ppf "ADVANCE" advance)
         (if advance
-            (let [found {}]
-              (for [i token-index (- (+ token-index advance) 1)]
-                (table.insert found (. tokens i)))
+            (let [next-index (+ token-index advance)
+                  found      (slice tokens token-index (- next-index 1))]
               (table.insert pieces (table.concat found " "))
-              (set token-index (+ token-index advance)))
+              (set token-index next-index))
             (set fail true))))
       ; (ppf "C-RULE" i (.. "#tokens = " (length tokens)) (.. "tidx = " token-index))
       ; (ppf "PIECES" pieces))
     (if (or fail (< token-index (length tokens)))
         nil
         pieces)))
-
 
 (fn reassemble [rrules pieces]
   "Reassemble the answer following a set of rules."
@@ -162,11 +147,6 @@
                      :content text} text
                     {:type :lookup
                      :content n}    (. pieces n)))))
-
-(fn random-element [t]
-  "Pick a random element from a sequence."
-  (let [index (math.random 1 (length t))]
-    (. t index)))
 
 (fn random-reassembly-rule [rule]
   "Pick a reassembly recipe at random and return its rule."

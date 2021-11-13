@@ -41,7 +41,8 @@
     ; Save the bot for this buffer
     (tset bots buffer bot)
     ; Turn it into a prompt
-    (tset vim.bo buffer :buftype  :prompt)
+    (tset vim.bo buffer :buftype   :prompt)
+    (tset vim.bo buffer :bufhidden :delete)
     (tset vim.bo buffer :swapfile false)
     (vim.fn.prompt_setprompt buffer theme.prompt)
     ;; Create the buffer and put the user on it

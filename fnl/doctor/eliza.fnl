@@ -5,6 +5,17 @@
      (print :>>> (unpack ss))
      ...))
 
+;; General utility functions
+(local {: unwords
+        : has-elem?
+        : nonempty?
+        : random-element
+        : random-remove!
+        : reverse}
+       (require :doctor.utils))
+
+
+;; Parse Input
 (local {: disassemble
         : try-random-reassemble}
        (require :doctor.parsing))
@@ -14,7 +25,7 @@
   `(let [it# ,value]
      (if (~= it# nil) it# ,default)))
 
-(macro loop-until [loop-args body]
+(macro loop-until [loop-type loop-args body]
   (assert-compile (sequence? loop-args)
                   "loop arguments should be inside square brackets"
                   loop-args)
@@ -23,44 +34,11 @@
   (table.insert loop-args `(~= ,result# nil))
   `(do
      (var ,result# nil)
-     (each ,loop-args
+     (,loop-type ,loop-args
        (let [this-stage# (do ,body)]
          (when (~= this-stage# nil)
            (set ,result# this-stage#))))
      ,result#))
-
-;;;; General utility functions
-
-(fn unwords [words]
-  "Join a string with spaces."
-  (table.concat words " "))
-
-(fn has-elem? [t x]
-  "Check whether a table contains a certain element."
-  (each [_ v (pairs t)]
-    (when (= x v)
-      (lua "return true")))
-  false)
-
-(fn nonempty? [t]
-  (> (length t) 0))
-
-(fn random-element [t]
-  "Pick a random element from a sequence."
-  (let [index (math.random 1 (length t))]
-    (. t index)))
-
-(fn random-remove! [t]
-  "Pick and remove a random element from a sequence."
-  (let [index (math.random 1 (length t))]
-    (table.remove t index)))
-
-(fn reverse [t]
-  "Reverse the elements of a sequence."
-  (let [out {}]
-    (for [i (length t) 1 -1]
-      (table.insert out (. t i)))
-    out))
 
 ;;;; Script accessors
 
@@ -162,7 +140,7 @@
 
 (fn try-decomposition-rules [script rules phrase]
   "Try to apply a series of decomposition rules to a string."
-  (loop-until [_ rule (ipairs rules)]
+  (loop-until each [_ rule (ipairs rules)]
     (try-decomposition-rule script rule phrase)))
 
 (set match-keyword (fn [script keyword phrase]
@@ -173,7 +151,7 @@
   "Apply a sequence of keywords to an input string until a match is found."
   ;; Return the result of applying the highest matching keyword
   ;; or, in case nothing matches, return a default response.
-  (with-default (loop-until [_ keyword (ipairs keywords)]
+  (with-default (loop-until each [_ keyword (ipairs keywords)]
                   (match-keyword script keyword phrase))
                 (pick-default-say script)))
 
