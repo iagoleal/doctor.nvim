@@ -130,7 +130,6 @@
 
 (fn try-decomposition-rule [script rule phrase]
   (let [pieces (disassemble script rule phrase)] ; Disassemble may fail
-    ; (ppf "DISSASEMBLED PIECES" pieces)
     (when pieces
       (match (try-random-reassemble rule pieces)
         (:done response) response
@@ -204,24 +203,12 @@
         0  (with-default (maybe-remember!)
                          (pick-default-say script))
         _  (do
-              ; (ppf "Keyword" kw-stack phrase)
               (commit-to-memory (. kw-stack 1) phrase)
               (keywords-matcher script kw-stack phrase)))))
   ;; Make the bot itself
   (setmetatable {: greet : answer}
                 {:__call #(answer $2)}))
 
-
-;;; Tests
-;;; TODO: Remove this after it's done
-; (local script (require :doctor.script))
-; ((. (make-bot script) :greet))
-; (local script ((loadfile "../lua/doctor/script.lua")))
-; (local bot (make-bot script))
-; (bot "I'm sorry")
-; (bot.answer "Are you happy?")
-; (bot "Hello, my name is Iago. How are you?")
-; (bot "Do you want to be my friend?")
 
 ;; export
 make-bot

@@ -2,31 +2,38 @@ local function ppf(...)
   local pp = require("fennelview")
   local ss
   do
-    local tbl_12_auto = {}
+    local tbl_15_auto = {}
+    local i_16_auto = #tbl_15_auto
     for k, v in pairs({...}) do
-      tbl_12_auto[(#tbl_12_auto + 1)] = pp(v)
+      local val_17_auto = pp(v)
+      if (nil ~= val_17_auto) then
+        i_16_auto = (i_16_auto + 1)
+        do end (tbl_15_auto)[i_16_auto] = val_17_auto
+      else
+      end
     end
-    ss = tbl_12_auto
+    ss = tbl_15_auto
   end
   print(">>>", unpack(ss))
   return ...
 end
-local _local_1_ = require("doctor.utils")
-local has_elem_3f = _local_1_["has-elem?"]
-local nonempty_3f = _local_1_["nonempty?"]
-local random_element = _local_1_["random-element"]
-local random_remove_21 = _local_1_["random-remove!"]
-local reverse = _local_1_["reverse"]
-local unwords = _local_1_["unwords"]
-local _local_2_ = require("doctor.parsing")
-local disassemble = _local_2_["disassemble"]
-local try_random_reassemble = _local_2_["try-random-reassemble"]
+local _local_2_ = require("doctor.utils")
+local unwords = _local_2_["unwords"]
+local has_elem_3f = _local_2_["has-elem?"]
+local nonempty_3f = _local_2_["nonempty?"]
+local random_element = _local_2_["random-element"]
+local random_remove_21 = _local_2_["random-remove!"]
+local reverse = _local_2_["reverse"]
+local _local_3_ = require("doctor.parsing")
+local disassemble = _local_3_["disassemble"]
+local try_random_reassemble = _local_3_["try-random-reassemble"]
 local function lookup_keyword(script, kw)
   local key = string.lower(kw)
   local keywords = script.keywords
   for _, obj in pairs(keywords) do
     if has_elem_3f(obj.keyword, kw) then
       return obj
+    else
     end
   end
   return nil
@@ -53,19 +60,30 @@ local function pick_greeting(script)
   return random_element(greetings)
 end
 local function split_into_words(text)
-  local tbl_12_auto = {}
+  local tbl_15_auto = {}
+  local i_16_auto = #tbl_15_auto
   for phrase in string.gmatch(text, "[^.,!?;:]+") do
-    local _4_
+    local val_17_auto
     do
-      local tbl_12_auto0 = {}
+      local tbl_15_auto0 = {}
+      local i_16_auto0 = #tbl_15_auto0
       for word in string.gmatch(phrase, "%S+") do
-        tbl_12_auto0[(#tbl_12_auto0 + 1)] = word
+        local val_17_auto0 = word
+        if (nil ~= val_17_auto0) then
+          i_16_auto0 = (i_16_auto0 + 1)
+          do end (tbl_15_auto0)[i_16_auto0] = val_17_auto0
+        else
+        end
       end
-      _4_ = tbl_12_auto0
+      val_17_auto = tbl_15_auto0
     end
-    tbl_12_auto[(#tbl_12_auto + 1)] = _4_
+    if (nil ~= val_17_auto) then
+      i_16_auto = (i_16_auto + 1)
+      do end (tbl_15_auto)[i_16_auto] = val_17_auto
+    else
+    end
   end
-  return tbl_12_auto
+  return tbl_15_auto
 end
 local function scan_keywords_chunk(script, words)
   local stack = {}
@@ -79,6 +97,7 @@ local function scan_keywords_chunk(script, words)
       else
         table.insert(stack, 1, kw)
       end
+    else
     end
   end
   return stack
@@ -93,28 +112,34 @@ local function scan_keywords(script, input)
     if nonempty_3f(keywords) then
       chunked_text_2a = chunked_text
       keywords_2a = keywords
+    else
     end
   end
   return chunked_text_2a, keywords_2a
 end
 local function reflect(script, chunked_text)
-  local tbl_12_auto = {}
+  local tbl_15_auto = {}
+  local i_16_auto = #tbl_15_auto
   for _, word in ipairs(chunked_text) do
-    local _9_
+    local val_17_auto
     do
-      local _8_ = lookup_reflection(script, word)
-      if (_8_ == nil) then
-        _9_ = word
-      elseif (nil ~= _8_) then
-        local refl = _8_
-        _9_ = refl
+      local _10_ = lookup_reflection(script, word)
+      if (_10_ == nil) then
+        val_17_auto = word
+      elseif (nil ~= _10_) then
+        local refl = _10_
+        val_17_auto = refl
       else
-      _9_ = nil
+        val_17_auto = nil
       end
     end
-    tbl_12_auto[(#tbl_12_auto + 1)] = _9_
+    if (nil ~= val_17_auto) then
+      i_16_auto = (i_16_auto + 1)
+      do end (tbl_15_auto)[i_16_auto] = val_17_auto
+    else
+    end
   end
-  return tbl_12_auto
+  return tbl_15_auto
 end
 local match_keyword = nil
 local function try_decomposition_rule(script, rule, phrase)
@@ -130,7 +155,11 @@ local function try_decomposition_rule(script, rule, phrase)
       return match_keyword(script, kw, phrase)
     elseif (_13_ == "newkey") then
       return nil
+    else
+      return nil
     end
+  else
+    return nil
   end
 end
 local function try_decomposition_rules(script, rules, phrase)
@@ -143,6 +172,7 @@ local function try_decomposition_rules(script, rules, phrase)
     end
     if (this_stage_2_auto ~= nil) then
       _17_ = this_stage_2_auto
+    else
     end
   end
   return _17_
@@ -164,6 +194,7 @@ local function keywords_matcher(script, keywords, phrase)
       end
       if (this_stage_2_auto ~= nil) then
         _20_ = this_stage_2_auto
+      else
       end
     end
     it_2_auto = _20_
@@ -194,7 +225,11 @@ local function make_bot(script)
       local output = try_decomposition_rules(script, rules, phrase)
       if (output ~= nil) then
         return memorize_21(output)
+      else
+        return nil
       end
+    else
+      return nil
     end
   end
   local function greet()
@@ -212,15 +247,17 @@ local function make_bot(script)
       else
         return pick_default_say(script)
       end
-    else
+    elseif true then
       local _ = _26_
       commit_to_memory(kw_stack[1], phrase)
       return keywords_matcher(script, kw_stack, phrase)
+    else
+      return nil
     end
   end
   local function _29_(_241, _242)
     return answer(_242)
   end
-  return setmetatable({answer = answer, greet = greet}, {__call = _29_})
+  return setmetatable({greet = greet, answer = answer}, {__call = _29_})
 end
 return make_bot

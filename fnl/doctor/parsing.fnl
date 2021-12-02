@@ -20,10 +20,10 @@
 ;;; Convert Text to Rules
 
 (local parsers
-  {:match-n      #(tonumber (smatch $1 "^%#(%d+)$"))    ; Match N words;                Pattern: #<number>
-   :match-many   #(smatch $1 "^(%*)$")                  ; Match 0 or more words;        Pattern: *
-   :match-word   #(smatch $1 "^(%S+)$")                 ; Match a word verbatim;        Pattern: <word>
-   :match-group  #(smatch $1 "^%@(%w+)$")               ; Match any word on group;      Pattern: @<word>
+  {:match-n      #(tonumber (smatch $1 "^%#(%d+)$"))      ; Match N words;                Pattern: #<number>
+   :match-many   #(smatch $1 "^(%*)$")                    ; Match 0 or more words;        Pattern: *
+   :match-word   #(smatch $1 "^(%S+)$")                   ; Match a word verbatim;        Pattern: <word>
+   :match-group  #(smatch $1 "^%@(%w+)$")                 ; Match any word on group;      Pattern: @<word>
    :match-choice #(let [content (smatch $1 "^%[(.*)%]$")] ; Match a choice between words; Pattern: [<word> ... <word>]
                     (when content
                       (icollect [keyword (split content "%,")]
@@ -103,8 +103,6 @@
                        n)
       :match-many (let [next-rule (. rules (+ rule-index 1))
                         tindex-gap (- (length tokens) token-index)]
-                    ; (ppf "NEXT RULE" (type next-rule) next-rule)
-                    ; (ppf "GAP" tindex-gap)
                     (if (nil? next-rule)
                         (+ tindex-gap 1)
                         (do
@@ -120,21 +118,16 @@
   (var token-index 1)
   (let [matching-rules (make-matching-rules (. bot-rule :decomposition))
         pieces {}]
-    ; (ppf :Tokens? tokens)
-    ; (ppf "Rules?" matching-rules)
     (each [i mrule (ipairs matching-rules) :until (or fail
                                                       (> token-index
                                                          (length tokens)))]
       (let [advance (match-here script matching-rules tokens i token-index)]
-        ; (ppf "ADVANCE" advance)
         (if advance
             (let [next-index (+ token-index advance)
                   found      (slice tokens token-index (- next-index 1))]
               (table.insert pieces (table.concat found " "))
               (set token-index next-index))
             (set fail true))))
-      ; (ppf "C-RULE" i (.. "#tokens = " (length tokens)) (.. "tidx = " token-index))
-      ; (ppf "PIECES" pieces))
     (if (or fail (< token-index (length tokens)))
         nil
         pieces)))
